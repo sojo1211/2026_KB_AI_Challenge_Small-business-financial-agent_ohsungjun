@@ -59,6 +59,10 @@ class AgentState(TypedDict):
 # 2. 전역 설정 및 초기화
 # ==========================================
 def load_api_key():
+    api_key = os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY")
+    if api_key:
+        return api_key
+        
     env_path = "./.env"
     if os.path.exists(env_path):
         with open(env_path, "r", encoding="utf-8") as f:
