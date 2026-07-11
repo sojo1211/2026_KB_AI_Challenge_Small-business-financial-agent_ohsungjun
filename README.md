@@ -1,3 +1,4 @@
+https://app.notion.com/p/39a121c0130680e88b08c5fb1bbc7ce8?source=copy_link
 # 2026 KB AI Challenge: 소상공인 금융 지원 AI Agent
 
 > **"비정형 금융 문서를 정확하게 이해하고 필요한 정보를 선제적으로 식별하는 KYC 전문가"**
