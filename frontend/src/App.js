@@ -179,7 +179,7 @@ function App() {
     setIsLoading(true);
 
     try {
-      const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
+      const API_URL = 'https://kb-ai-agent-backend.onrender.com';
       const response = await fetch(`${API_URL}/api/chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
