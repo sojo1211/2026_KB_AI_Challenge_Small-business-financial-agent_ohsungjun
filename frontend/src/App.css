@@ -78,8 +78,8 @@ body {
    ========================================== */
 .sidebar {
   width: 320px;
-  background-color: #FAFBFC;
-  border-right: 1px solid var(--kb-border);
+  background-color: #1A1C1E; /* Premium dark background */
+  border-right: 1px solid #2D3139;
   display: flex;
   flex-direction: column;
   overflow-y: auto;
@@ -90,44 +90,48 @@ body {
 .sidebar-title {
   font-size: 1.1rem;
   font-weight: 700;
-  color: var(--kb-black);
-  margin-bottom: 15px;
+  color: #FFFFFF;
+  margin-bottom: 20px;
   display: flex;
   align-items: center;
   gap: 8px;
+  border-bottom: 1px solid #2D3139;
+  padding-bottom: 12px;
 }
 
 .history-date-group {
-  margin-bottom: 16px;
+  margin-bottom: 20px;
 }
 
 .history-date-label {
-  font-size: 0.7rem;
-  font-weight: 600;
-  color: #94A3B8;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #64748B;
   text-transform: uppercase;
-  letter-spacing: 0.5px;
+  letter-spacing: 0.8px;
   padding: 0 8px;
-  margin-bottom: 6px;
+  margin-bottom: 8px;
 }
 
 .history-item {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 10px 10px;
+  gap: 12px;
+  padding: 10px 12px;
   border-radius: 8px;
   cursor: pointer;
   transition: all 0.2s ease;
+  border: 1px solid transparent;
+  margin-bottom: 4px;
 }
 
 .history-item:hover {
-  background-color: #E2E8F0;
+  background-color: #2D3139;
 }
 
 .history-item.active {
-  background-color: #FFFDF0;
-  border: 1px solid var(--kb-yellow);
+  background-color: #2C2514; /* Warm dark yellow-tinted background */
+  border-color: rgba(255, 204, 0, 0.4);
 }
 
 .history-icon {
@@ -143,10 +147,15 @@ body {
 .history-item-title {
   font-size: 0.82rem;
   font-weight: 600;
-  color: var(--text-primary);
+  color: #F1F5F9;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  transition: color 0.2s ease;
+}
+
+.history-item.active .history-item-title {
+  color: var(--kb-yellow);
 }
 
 .history-item-preview {
@@ -156,6 +165,10 @@ body {
   overflow: hidden;
   text-overflow: ellipsis;
   margin-top: 2px;
+}
+
+.history-item.active .history-item-preview {
+  color: #B4B9C1;
 }
 
 .category-section {
