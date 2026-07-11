@@ -8,9 +8,9 @@
 
 ```mermaid
 flowchart TD
-    A[<b>SafeFall</b><br>센서 데이터 이상 탐지] --> B[<b>SRHS</b><br>스테이블코인 리스크 지표 설계]
-    B --> C[<b>KB AI Challenge (현재)</b><br>소상공인 금융 데이터 + RAG]
-    C --> D{<b>Toss Payments</b><br>Merchant Onboarding Assistant<br>KYC · AML 전문가}
+    A["SafeFall — 센서 데이터 이상 탐지"] --> B["SRHS — 스테이블코인 리스크 지표 설계"]
+    B --> C["KB AI Challenge (현재) — 소상공인 금융 데이터 + RAG"]
+    C --> D{"Toss Payments — Merchant Onboarding Assistant / KYC · AML 전문가"}
     
     style A fill:#f9f9f9,stroke:#e0e0e0,stroke-width:2px,color:#333
     style B fill:#f9f9f9,stroke:#e0e0e0,stroke-width:2px,color:#333
