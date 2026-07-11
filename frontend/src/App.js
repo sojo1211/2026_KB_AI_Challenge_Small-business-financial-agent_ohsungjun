@@ -134,42 +134,60 @@ function App() {
               <div className="history-item active">
                 <span className="history-icon">💸</span>
                 <div className="history-item-content">
-                  <div className="history-item-title">소상공인 정책자금 자격요건</div>
+                  <div className="history-item-header">
+                    <span className="history-item-title">소상공인 정책자금 자격요건</span>
+                    <span className="history-item-time">10:24</span>
+                  </div>
                   <div className="history-item-preview">신청 자격과 제한 대상 안내</div>
                 </div>
               </div>
               <div className="history-item">
                 <span className="history-icon">🛡️</span>
                 <div className="history-item-content">
-                  <div className="history-item-title">KYC 필수 확인 항목 정리</div>
+                  <div className="history-item-header">
+                    <span className="history-item-title">KYC 필수 확인 항목 정리</span>
+                    <span className="history-item-time">10:15</span>
+                  </div>
                   <div className="history-item-preview">비대면 가맹점 심사 기준</div>
                 </div>
               </div>
               <div className="history-item">
                 <span className="history-icon">📊</span>
                 <div className="history-item-content">
-                  <div className="history-item-title">상권정보 데이터 포맷 분석</div>
+                  <div className="history-item-header">
+                    <span className="history-item-title">상권정보 데이터 포맷 분석</span>
+                    <span className="history-item-time">09:42</span>
+                  </div>
                   <div className="history-item-preview">소상공인시장진흥공단 API</div>
                 </div>
               </div>
               <div className="history-item">
                 <span className="history-icon">📈</span>
                 <div className="history-item-content">
-                  <div className="history-item-title">전라남도 소비자물가 추이</div>
+                  <div className="history-item-header">
+                    <span className="history-item-title">전라남도 소비자물가 추이</span>
+                    <span className="history-item-time">09:11</span>
+                  </div>
                   <div className="history-item-preview">2024~2025 물가지수 트렌드</div>
                 </div>
               </div>
               <div className="history-item">
                 <span className="history-icon">🏦</span>
                 <div className="history-item-content">
-                  <div className="history-item-title">신용보증기금 보증상품 평가</div>
+                  <div className="history-item-header">
+                    <span className="history-item-title">신용보증기금 보증상품 평가</span>
+                    <span className="history-item-time">08:30</span>
+                  </div>
                   <div className="history-item-preview">성과평가 결과 요약</div>
                 </div>
               </div>
               <div className="history-item">
                 <span className="history-icon">⚖️</span>
                 <div className="history-item-content">
-                  <div className="history-item-title">AML 내부통제 절차 가이드</div>
+                  <div className="history-item-header">
+                    <span className="history-item-title">AML 내부통제 절차 가이드</span>
+                    <span className="history-item-time">08:05</span>
+                  </div>
                   <div className="history-item-preview">전자금융업 감독규정 안내</div>
                 </div>
               </div>

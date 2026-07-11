@@ -144,6 +144,13 @@ body {
   flex: 1;
 }
 
+.history-item-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+}
+
 .history-item-title {
   font-size: 0.82rem;
   font-weight: 600;
@@ -152,6 +159,18 @@ body {
   overflow: hidden;
   text-overflow: ellipsis;
   transition: color 0.2s ease;
+  flex: 1;
+  min-width: 0;
+}
+
+.history-item-time {
+  font-size: 0.65rem;
+  color: #64748B;
+  flex-shrink: 0;
+}
+
+.history-item.active .history-item-time {
+  color: #94A3B8;
 }
 
 .history-item.active .history-item-title {
