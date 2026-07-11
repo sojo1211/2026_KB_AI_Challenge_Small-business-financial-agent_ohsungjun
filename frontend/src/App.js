@@ -145,10 +145,6 @@ function App() {
                   <div className="history-item-preview">비대면 가맹점 심사 기준</div>
                 </div>
               </div>
-            </div>
-
-            <div className="history-date-group">
-              <div className="history-date-label">어제</div>
               <div className="history-item">
                 <span className="history-icon">📊</span>
                 <div className="history-item-content">
@@ -163,10 +159,6 @@ function App() {
                   <div className="history-item-preview">2024~2025 물가지수 트렌드</div>
                 </div>
               </div>
-            </div>
-
-            <div className="history-date-group">
-              <div className="history-date-label">지난 7일</div>
               <div className="history-item">
                 <span className="history-icon">🏦</span>
                 <div className="history-item-content">
