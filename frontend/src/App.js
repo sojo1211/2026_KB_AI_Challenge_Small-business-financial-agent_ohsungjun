@@ -84,10 +84,24 @@ const initialConversations = [
 ];
 
 function App() {
-  const [conversations, setConversations] = useState(initialConversations);
-  const [activeConvId, setActiveConvId] = useState('conv-1');
+  const [conversations, setConversations] = useState(() => {
+    const saved = localStorage.getItem('kb-conversations');
+    return saved ? JSON.parse(saved) : initialConversations;
+  });
+  const [activeConvId, setActiveConvId] = useState(() => {
+    const saved = localStorage.getItem('kb-active-conv');
+    return saved || 'conv-1';
+  });
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  
+  useEffect(() => {
+    localStorage.setItem('kb-conversations', JSON.stringify(conversations));
+  }, [conversations]);
+
+  useEffect(() => {
+    localStorage.setItem('kb-active-conv', activeConvId);
+  }, [activeConvId]);
   
   const messageEndRef = useRef(null);
 
