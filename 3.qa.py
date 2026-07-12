@@ -57,11 +57,9 @@ class AgentState(TypedDict):
 # ==========================================
 # 2. 전역 설정 및 초기화
 # ==========================================
-def load_api_key():
-    api_key = os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY")
-    if api_key:
-        return api_key
-        
+def load_api_keys():
+    """모든 Gemini API 키를 수집합니다 (GEMINI_API_KEY, GEMINI_API_KEY_2, ...)"""
+    api_keys = []
     env_path = "./.env"
     if os.path.exists(env_path):
         with open(env_path, "r", encoding="utf-8") as f:
@@ -73,18 +71,28 @@ def load_api_key():
                     parts = line.split("=", 1)
                     key = parts[0].strip()
                     val = parts[1].strip().strip("'").strip('"')
-                    if key in ["GEMINI_API_KEY", "GOOGLE_API_KEY"]:
-                        return val
+                    if key.startswith("GEMINI_API_KEY") or key == "GOOGLE_API_KEY":
+                        if val and val not in api_keys:
+                            api_keys.append(val)
                 elif line.startswith("AQ"):
-                    return line
-    return None
+                    if line not in api_keys:
+                        api_keys.append(line)
+    # 환경변수에서도 추가 수집
+    for env_name in ["GEMINI_API_KEY", "GOOGLE_API_KEY", "GEMINI_API_KEY_2"]:
+        env_val = os.environ.get(env_name)
+        if env_val and env_val not in api_keys:
+            api_keys.append(env_val)
+    return api_keys
 
-api_key = load_api_key()
-if not api_key:
+api_keys = load_api_keys()
+if not api_keys:
     raise ValueError("❌ .env 파일에서 Gemini API 키를 찾을 수 없습니다. API 키를 등록해 주세요.")
 
+current_key_idx = 0
+api_key = api_keys[current_key_idx]
 os.environ["GEMINI_API_KEY"] = api_key
 os.environ["GOOGLE_API_KEY"] = api_key
+print(f"🔑 총 {len(api_keys)}개의 API 키를 발견했습니다.")
 
 # 2.1 임베딩 모델 및 리트리버 로드
 print("🧠 임베딩 모델(Gemini) 로드 중...")

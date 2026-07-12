@@ -130,8 +130,8 @@ def main():
     # 긴 문서를 지정된 크기(chunk_size)로 자릅니다.
     # 이때 문맥이 뚝 끊기지 않도록 앞뒤로 일정 글자 수(chunk_overlap)만큼 겹치게 설정합니다.
     text_splitter = RecursiveCharacterTextSplitter(
-        chunk_size=10000,
-        chunk_overlap=1000,
+        chunk_size=200000,
+        chunk_overlap=5000,
         length_function=len
     )
     chunks = text_splitter.split_documents(all_documents)
@@ -141,27 +141,34 @@ def main():
     # Render 무료 티어(512MB RAM) 환경에서 OOM 방지를 위해 가벼운 Gemini API 임베딩을 사용합니다.
     print("\n🧠 임베딩 모델(Gemini API)을 로드하는 중입니다...")
     
-    # 3.qa.py와 동일한 방식으로 API 키를 불러옵니다.
-    api_key = os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY")
-    if not api_key:
-        env_path = "./.env"
-        if os.path.exists(env_path):
-            with open(env_path, "r", encoding="utf-8") as f:
-                for line in f:
-                    line = line.strip()
-                    if "=" in line:
-                        k, v = line.split("=", 1)
-                        if k.strip() in ["GEMINI_API_KEY", "GOOGLE_API_KEY"]:
-                            api_key = v.strip().strip("'").strip('"')
-                            break
-                    elif line.startswith("AQ"):
-                        api_key = line
-                        break
-                        
-    if not api_key:
+    # .env에서 모든 API 키를 수집합니다 (GEMINI_API_KEY, GEMINI_API_KEY_2, ...)
+    api_keys = []
+    env_path = "./.env"
+    if os.path.exists(env_path):
+        with open(env_path, "r", encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if "=" in line:
+                    k, v = line.split("=", 1)
+                    if k.strip().startswith("GEMINI_API_KEY") or k.strip() == "GOOGLE_API_KEY":
+                        key_val = v.strip().strip("'").strip('"')
+                        if key_val and key_val not in api_keys:
+                            api_keys.append(key_val)
+    
+    # 환경변수에서도 추가 수집
+    for env_name in ["GEMINI_API_KEY", "GOOGLE_API_KEY", "GEMINI_API_KEY_2"]:
+        env_val = os.environ.get(env_name)
+        if env_val and env_val not in api_keys:
+            api_keys.append(env_val)
+    
+    if not api_keys:
         print("❌ API 키를 찾을 수 없습니다. .env 파일을 확인해 주세요.")
         return
-        
+    
+    print(f"🔑 총 {len(api_keys)}개의 API 키를 발견했습니다.")
+    
+    current_key_idx = 0
+    api_key = api_keys[current_key_idx]
     os.environ["GEMINI_API_KEY"] = api_key
     os.environ["GOOGLE_API_KEY"] = api_key
     
@@ -208,6 +215,15 @@ def main():
             except Exception as e:
                 err_str = str(e)
                 if "429" in err_str or "RESOURCE_EXHAUSTED" in err_str or "quota" in err_str.lower():
+                    # 다른 API 키가 남아 있으면 즉시 전환
+                    if current_key_idx + 1 < len(api_keys):
+                        current_key_idx += 1
+                        api_key = api_keys[current_key_idx]
+                        os.environ["GEMINI_API_KEY"] = api_key
+                        os.environ["GOOGLE_API_KEY"] = api_key
+                        embeddings = GoogleGenerativeAIEmbeddings(model="models/gemini-embedding-001")
+                        print(f"🔄 API 키 #{current_key_idx + 1}로 전환합니다. 즉시 재시도...")
+                        continue
                     wait_time = (2 ** attempt) * 10  # 10, 20, 40, 80초 지수 백오프
                     print(f"⏳ API 할당량 초과. {wait_time}초 대기 후 재시도합니다... (시도 {attempt+1}/{max_retries})")
                     time.sleep(wait_time)

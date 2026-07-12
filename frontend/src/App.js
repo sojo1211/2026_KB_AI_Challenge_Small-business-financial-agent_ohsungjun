@@ -193,7 +193,7 @@ function App() {
     setIsLoading(true);
 
     try {
-      const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
+      const API_URL = process.env.REACT_APP_API_URL || 'https://kb-ai-agent-backend.onrender.com';
       const response = await fetch(`${API_URL}/api/chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -248,7 +248,7 @@ function App() {
         <span className="kb-banner-badge">현직자 Pick 주제</span>
         <span>2026 KB 국민은행 제8회 AI Challenge 경진대회</span>
         <img 
-          src="/star-friends.png" 
+          src={process.env.PUBLIC_URL + "/star-friends.png"} 
           className="star-friends-img" 
           alt="KB 스타프렌즈 스토리" 
         />
