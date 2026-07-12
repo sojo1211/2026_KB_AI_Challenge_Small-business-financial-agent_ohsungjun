@@ -4,7 +4,6 @@ from typing import List
 from langchain_core.documents import Document
 from langchain_community.document_loaders import PyPDFLoader, CSVLoader, TextLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
-from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_community.vectorstores import Chroma
 
 # Optional dependencies for Excel and HWP
@@ -64,6 +63,9 @@ def process_excel(file_path: str) -> List[Document]:
     docs = []
     try:
         df = pd.read_excel(file_path)
+        if len(df) > 20:
+            print(f"⚠️ 대형 Excel 파일 감지 ({len(df)}행). 첫 20행만 샘플링합니다: {file_path}")
+            df = df.head(20)
         for index, row in df.iterrows():
             content = "\n".join([f"{col}: {val}" for col, val in row.items() if pd.notna(val)])
             docs.append(Document(page_content=content, metadata={"source": file_path, "row": index}))
@@ -77,33 +79,19 @@ def load_document(file_path: str) -> List[Document]:
     - 지원 포맷: PDF, CSV, Excel, HWP, TXT/MD
     """
     ext = os.path.splitext(file_path)[-1].lower()
+    filename = os.path.basename(file_path).lower()
+    
+    # 1. Skip CSV and Excel files entirely (raw data datasets, not needed for general text QA)
+    if ext in ['.csv', '.xls', '.xlsx']:
+        return []
+        
+    # 2. Skip template/form files (only contain blank forms and empty guidelines, not actual knowledge)
+    if any(keyword in filename for keyword in ["별첨", "동의서", "지원서", "계획서", "서식", "신청서", "확약서"]):
+        return []
+
     try:
         if ext == '.pdf':
             return PyPDFLoader(file_path).load()
-        elif ext == '.csv':
-            try:
-                # pandas를 활용한 더 안정적인 CSV 파싱 (인코딩 자동 감지 및 에러 무시)
-                if pd is None:
-                    return CSVLoader(file_path, encoding='utf-8').load()
-                    
-                docs = []
-                try:
-                    df = pd.read_csv(file_path, encoding='utf-8', on_bad_lines='skip')
-                except UnicodeDecodeError:
-                    try:
-                        df = pd.read_csv(file_path, encoding='cp949', on_bad_lines='skip')
-                    except UnicodeDecodeError:
-                        df = pd.read_csv(file_path, encoding='euc-kr', on_bad_lines='skip')
-                
-                for index, row in df.iterrows():
-                    content = "\n".join([f"{col}: {val}" for col, val in row.items() if pd.notna(val)])
-                    docs.append(Document(page_content=content, metadata={"source": file_path, "row": index}))
-                return docs
-            except Exception as e:
-                print(f"CSV 파싱 중 에러 발생 (스킵): {e}")
-                return []
-        elif ext in ['.xls', '.xlsx']:
-            return process_excel(file_path)
         elif ext in ['.hwp', '.hwpx']:
             return HWPLoader(file_path).load()
         elif ext in ['.txt', '.md']:
@@ -142,22 +130,43 @@ def main():
     # 긴 문서를 지정된 크기(chunk_size)로 자릅니다.
     # 이때 문맥이 뚝 끊기지 않도록 앞뒤로 일정 글자 수(chunk_overlap)만큼 겹치게 설정합니다.
     text_splitter = RecursiveCharacterTextSplitter(
-        chunk_size=2000,
-        chunk_overlap=300,
+        chunk_size=10000,
+        chunk_overlap=1000,
         length_function=len
     )
     chunks = text_splitter.split_documents(all_documents)
     print(f"✅ 총 {len(chunks)}개의 Chunk 생성 완료.")
 
     # 임베딩(Embedding) 모델 로드
-    # multilingual-e5-small: 다국어(한국어 포함) 지원, 470MB로 가볍고 빠름
-    print("\n🧠 임베딩 모델(multilingual-e5-small)을 로드하는 중입니다...")
+    # Render 무료 티어(512MB RAM) 환경에서 OOM 방지를 위해 가벼운 Gemini API 임베딩을 사용합니다.
+    print("\n🧠 임베딩 모델(Gemini API)을 로드하는 중입니다...")
     
-    embeddings = HuggingFaceEmbeddings(
-        model_name="intfloat/multilingual-e5-small",
-        model_kwargs={'device': 'cuda'},
-        encode_kwargs={'normalize_embeddings': True, 'batch_size': 128}
-    )
+    # 3.qa.py와 동일한 방식으로 API 키를 불러옵니다.
+    api_key = os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY")
+    if not api_key:
+        env_path = "./.env"
+        if os.path.exists(env_path):
+            with open(env_path, "r", encoding="utf-8") as f:
+                for line in f:
+                    line = line.strip()
+                    if "=" in line:
+                        k, v = line.split("=", 1)
+                        if k.strip() in ["GEMINI_API_KEY", "GOOGLE_API_KEY"]:
+                            api_key = v.strip().strip("'").strip('"')
+                            break
+                    elif line.startswith("AQ"):
+                        api_key = line
+                        break
+                        
+    if not api_key:
+        print("❌ API 키를 찾을 수 없습니다. .env 파일을 확인해 주세요.")
+        return
+        
+    os.environ["GEMINI_API_KEY"] = api_key
+    os.environ["GOOGLE_API_KEY"] = api_key
+    
+    from langchain_google_genai import GoogleGenerativeAIEmbeddings
+    embeddings = GoogleGenerativeAIEmbeddings(model="models/gemini-embedding-001")
 
     print("\n💾 Chroma DB에 벡터 데이터를 저장합니다...")
     # Tokenizer 에러 방지를 위해 page_content가 완벽한 문자열인지 다시 한 번 검증 및 필터링
@@ -175,37 +184,42 @@ def main():
     
     print(f"🧹 전처리 후 유효한 Chunk: {len(valid_chunks)}개 (기존 {len(chunks)}개)")
 
-    # 한 번에 너무 많은 데이터를 넣으면 메모리 에러나 tokenizer 제한이 발생할 수 있으므로, 안전하게 추가
-    batch_size = 5000
+    import time
+    batch_size = 15
+    max_retries = 8
     vectorstore = None
-    for i in range(0, len(valid_chunks), batch_size):
+    total_chunks = len(valid_chunks)
+    for i in range(0, total_chunks, batch_size):
         batch_chunks = valid_chunks[i:i + batch_size]
-        print(f"[{i+1} ~ {min(i+batch_size, len(valid_chunks))}] 배치 저장 중...")
-        try:
-            if vectorstore is None:
-                vectorstore = Chroma.from_documents(
-                    documents=batch_chunks,
-                    embedding=embeddings,
-                    persist_directory=db_dir
-                )
-            else:
-                vectorstore.add_documents(batch_chunks)
-        except TypeError as e:
-            print("❌ 배치 저장 중 TypeError 발생. 문제가 되는 청크를 찾기 위해 하나씩 저장합니다...")
-            for idx, doc in enumerate(batch_chunks):
-                try:
-                    if vectorstore is None:
-                        vectorstore = Chroma.from_documents(documents=[doc], embedding=embeddings, persist_directory=db_dir)
-                    else:
-                        vectorstore.add_documents([doc])
-                except Exception as inner_e:
-                    print(f"🚨 에러를 유발한 문서 [Index: {i + idx}] 🚨")
-                    print("--- [문서 내용 시작] ---")
-                    print(repr(doc.page_content))
-                    print("--- [문서 내용 끝] ---")
-                    print(f"메타데이터: {doc.metadata}")
-                    print(f"발생 에러: {inner_e}")
-                    print("이 문서를 건너뛰고 계속 진행합니다.")
+        batch_end = min(i + batch_size, total_chunks)
+        print(f"[{i+1} ~ {batch_end}] 배치 저장 중... ({batch_end}/{total_chunks}, {batch_end*100//total_chunks}%)")
+        
+        for attempt in range(max_retries):
+            try:
+                if vectorstore is None:
+                    vectorstore = Chroma.from_documents(
+                        documents=batch_chunks,
+                        embedding=embeddings,
+                        persist_directory=db_dir
+                    )
+                else:
+                    vectorstore.add_documents(batch_chunks)
+                break  # 성공 시 루프 탈출
+            except Exception as e:
+                err_str = str(e)
+                if "429" in err_str or "RESOURCE_EXHAUSTED" in err_str or "quota" in err_str.lower():
+                    wait_time = (2 ** attempt) * 10  # 10, 20, 40, 80초 지수 백오프
+                    print(f"⏳ API 할당량 초과. {wait_time}초 대기 후 재시도합니다... (시도 {attempt+1}/{max_retries})")
+                    time.sleep(wait_time)
+                else:
+                    print(f"❌ 예상치 못한 에러: {e}")
+                    print("이 배치를 건너뛰고 계속 진행합니다.")
+                    break
+        else:
+            print(f"⚠️ 최대 재시도 횟수 초과. [{i+1} ~ {batch_end}] 배치를 건너뜁니다.")
+        
+        # 배치 간 딜레이 (100 RPM 제한 방지)
+        time.sleep(12)
     
     print(f"\n🎉 [SUCCESS] 모든 임베딩이 성공적으로 완료되었습니다!")
     print(f"저장된 Vector DB 경로: {os.path.abspath(db_dir)}")

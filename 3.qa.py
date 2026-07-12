@@ -5,8 +5,7 @@ from typing_extensions import TypedDict
 
 # LangChain & LangGraph
 from langchain_community.vectorstores import Chroma
-from langchain_huggingface import HuggingFaceEmbeddings
-from langchain_google_genai import ChatGoogleGenerativeAI
+from langchain_google_genai import ChatGoogleGenerativeAI, GoogleGenerativeAIEmbeddings
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.documents import Document
 from langgraph.graph import StateGraph, START, END
@@ -88,12 +87,9 @@ os.environ["GEMINI_API_KEY"] = api_key
 os.environ["GOOGLE_API_KEY"] = api_key
 
 # 2.1 임베딩 모델 및 리트리버 로드
-print("🧠 임베딩 모델(multilingual-e5-small) 로드 중...")
-embeddings = HuggingFaceEmbeddings(
-    model_name="intfloat/multilingual-e5-small",
-    model_kwargs={'device': 'cuda'},  # GPU 가속
-    encode_kwargs={'normalize_embeddings': True}
-)
+print("🧠 임베딩 모델(Gemini) 로드 중...")
+from langchain_google_genai import GoogleGenerativeAIEmbeddings
+embeddings = GoogleGenerativeAIEmbeddings(model="models/gemini-embedding-001")
 
 db_dir = "./chroma_db"
 if not os.path.exists(db_dir):
@@ -198,7 +194,13 @@ def generate_node(state: AgentState) -> Dict[str, Any]:
         src = clean_source_label(raw_src)
         page = doc.metadata.get('page', 0) + 1
         
-        source_label = f"{src} (Page {page})" if "page" in doc.metadata else src
+        # 웹 검색 결과 또는 일반 파일 구분하여 라벨 생성
+        if raw_src.startswith("http") or "DuckDuckGo" in raw_src:
+            source_label = f"실시간 웹 정보 ({raw_src})"
+        else:
+            filename = os.path.basename(raw_src)
+            source_label = f"{src} - {filename} ({page}페이지)"
+            
         if source_label not in seen_sources:
             sources.append(source_label)
             seen_sources.add(source_label)

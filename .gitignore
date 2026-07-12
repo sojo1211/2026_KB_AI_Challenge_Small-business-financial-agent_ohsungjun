@@ -5,7 +5,7 @@ venv/
 .env
 
 # Database ignores
-chroma_db/
+# chroma_db/
 Data/
 
 # IDE ignores
