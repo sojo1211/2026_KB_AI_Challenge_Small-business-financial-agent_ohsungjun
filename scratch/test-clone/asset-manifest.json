@@ -1,0 +1,13 @@
+{
+  "files": {
+    "main.css": "/2026_KB_AI_Challenge_Small-business-financial-agent_ohsungjun/static/css/main.2dd5750a.css",
+    "main.js": "/2026_KB_AI_Challenge_Small-business-financial-agent_ohsungjun/static/js/main.04ef6699.js",
+    "index.html": "/2026_KB_AI_Challenge_Small-business-financial-agent_ohsungjun/index.html",
+    "main.2dd5750a.css.map": "/2026_KB_AI_Challenge_Small-business-financial-agent_ohsungjun/static/css/main.2dd5750a.css.map",
+    "main.04ef6699.js.map": "/2026_KB_AI_Challenge_Small-business-financial-agent_ohsungjun/static/js/main.04ef6699.js.map"
+  },
+  "entrypoints": [
+    "static/css/main.2dd5750a.css",
+    "static/js/main.04ef6699.js"
+  ]
+}
