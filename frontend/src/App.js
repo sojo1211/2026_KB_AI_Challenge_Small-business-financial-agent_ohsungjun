@@ -1,10 +1,50 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import './App.css';
 
 const WELCOME_MESSAGE = {
   sender: 'agent',
   text: `안녕하세요! 2026 KB 국민은행 AI Challenge '소상공인 금융 지원 AI Agent'입니다.\n\n소상공인을 위한 정책자금 및 금융상품 정보, 상권 및 경기 지표 트렌드, 그리고 비대면 가맹점 심사를 위한 고객확인(KYC/AML) 법령 가이드라인까지 신속하게 안내해 드립니다.\n\n궁금한 내용을 직접 입력하시거나 좌측의 추천 질문을 클릭해 보세요!`,
   sources: []
+};
+
+// 날짜/시간 포맷터 함수 (오늘, 어제, 그리고 일반 날짜 형식 지원)
+const formatTime = (timeStr) => {
+  if (!timeStr) return '';
+  const d = new Date(timeStr);
+  if (isNaN(d.getTime())) {
+    return timeStr; // 파싱 실패 시 원본 문자열 반환
+  }
+
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const yesterday = new Date(today);
+  yesterday.setDate(yesterday.getDate() - 1);
+
+  const compareDate = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  const hours = String(d.getHours()).padStart(2, '0');
+  const minutes = String(d.getMinutes()).padStart(2, '0');
+
+  if (compareDate.getTime() === today.getTime()) {
+    return `오늘 ${hours}:${minutes}`;
+  } else if (compareDate.getTime() === yesterday.getTime()) {
+    return `어제 ${hours}:${minutes}`;
+  } else {
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const date = String(d.getDate()).padStart(2, '0');
+    return `${year}.${month}.${date} ${hours}:${minutes}`;
+  }
+};
+
+// 헬퍼: 시연 시 실제 오늘, 어제 날짜 기반으로 ISO 시간 생성
+const getRelativeISOString = (daysAgo, hour, minute) => {
+  const d = new Date();
+  d.setDate(d.getDate() - daysAgo);
+  d.setHours(hour);
+  d.setMinutes(minute);
+  d.setSeconds(0);
+  d.setMilliseconds(0);
+  return d.toISOString();
 };
 
 // 초기 Mock 대화 기록 (포트폴리오 시연용)
@@ -14,7 +54,7 @@ const initialConversations = [
     title: '소상공인 정책자금 자격요건',
     preview: '신청 자격과 제한 대상 안내',
     icon: '💸',
-    time: '10:24',
+    time: getRelativeISOString(0, 10, 24), // 오늘 10:24
     messages: [
       { ...WELCOME_MESSAGE },
       { sender: 'user', text: '소상공인 정책자금 신청 자격과 제한 대상은 무엇인가요?', sources: [] },
@@ -26,7 +66,7 @@ const initialConversations = [
     title: 'KYC 필수 확인 항목 정리',
     preview: '비대면 가맹점 심사 기준',
     icon: '🛡️',
-    time: '10:15',
+    time: getRelativeISOString(0, 10, 15), // 오늘 10:15
     messages: [
       { ...WELCOME_MESSAGE },
       { sender: 'user', text: '비대면 가맹점 심사 시 고객확인제도(KYC) 필수 확인 항목은 무엇인가요?', sources: [] },
@@ -38,7 +78,7 @@ const initialConversations = [
     title: '상권정보 데이터 포맷 분석',
     preview: '소상공인시장진흥공단 API',
     icon: '📊',
-    time: '09:42',
+    time: getRelativeISOString(0, 9, 42), // 오늘 09:42
     messages: [
       { ...WELCOME_MESSAGE },
       { sender: 'user', text: '소상공인시장진흥공단의 상권정보 데이터 포맷은 어떻게 구성되어 있나요?', sources: [] },
@@ -50,7 +90,7 @@ const initialConversations = [
     title: '전라남도 소비자물가 추이',
     preview: '2024~2025 물가지수 트렌드',
     icon: '📈',
-    time: '09:11',
+    time: getRelativeISOString(1, 9, 11), // 어제 09:11
     messages: [
       { ...WELCOME_MESSAGE },
       { sender: 'user', text: '전라남도 소비자물가지수 추이에 대해 설명해 주실래요?', sources: [] },
@@ -62,7 +102,7 @@ const initialConversations = [
     title: '신용보증기금 보증상품 평가',
     preview: '성과평가 결과 요약',
     icon: '🏦',
-    time: '08:30',
+    time: getRelativeISOString(1, 8, 30), // 어제 08:30
     messages: [
       { ...WELCOME_MESSAGE },
       { sender: 'user', text: '신용보증기금의 보증상품 성과평가 결과를 요약해 주실래요?', sources: [] },
@@ -74,7 +114,7 @@ const initialConversations = [
     title: 'AML 내부통제 절차 가이드',
     preview: '전자금융업 감독규정 안내',
     icon: '⚖️',
-    time: '08:05',
+    time: getRelativeISOString(2, 8, 5), // 그저께 08:05
     messages: [
       { ...WELCOME_MESSAGE },
       { sender: 'user', text: '전자금융업 감독규정상 자금세탁방지(AML) 내부통제 절차는 어떻게 되나요?', sources: [] },
@@ -86,15 +126,41 @@ const initialConversations = [
 function App() {
   const [conversations, setConversations] = useState(() => {
     const saved = localStorage.getItem('kb-conversations');
-    return saved ? JSON.parse(saved) : initialConversations;
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        // 기존 HH:MM 포맷의 시간 데이터를 ISOString 포맷으로 자동 마이그레이션
+        return parsed.map(conv => {
+          if (conv.time && conv.time.includes(':') && conv.time.length <= 5) {
+            const [hh, mm] = conv.time.split(':');
+            const now = new Date();
+            now.setHours(parseInt(hh, 10), parseInt(mm, 10), 0, 0);
+            return { ...conv, time: now.toISOString() };
+          }
+          return conv;
+        });
+      } catch (e) {
+        console.error('LocalStorage 파싱 에러:', e);
+        return initialConversations;
+      }
+    }
+    return initialConversations;
   });
+  
   const [activeConvId, setActiveConvId] = useState(() => {
     const saved = localStorage.getItem('kb-active-conv');
     return saved || 'conv-1';
   });
+  
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+
+  // 모바일 반응형 사이드바 상태
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   
+  // 모바일 전용 추천 질문 카테고리 팝업 모달 상태
+  const [activeRecommendCategory, setActiveRecommendCategory] = useState(null);
+
   useEffect(() => {
     localStorage.setItem('kb-conversations', JSON.stringify(conversations));
   }, [conversations]);
@@ -102,12 +168,14 @@ function App() {
   useEffect(() => {
     localStorage.setItem('kb-active-conv', activeConvId);
   }, [activeConvId]);
-  
+
   const messageEndRef = useRef(null);
 
   // 현재 활성 대화 가져오기
   const activeConversation = conversations.find(c => c.id === activeConvId);
-  const messages = activeConversation ? activeConversation.messages : [];
+  const messages = useMemo(() => {
+    return activeConversation ? activeConversation.messages : [];
+  }, [activeConversation]);
 
   // 자동 스크롤
   useEffect(() => {
@@ -117,7 +185,7 @@ function App() {
   // 추천 질문 카테고리 정의
   const recommendedCategories = [
     {
-      name: "💸 정책자금 및 금융상품",
+      name: "💸 정책자금 및 상품",
       questions: [
         "소상공인 정책자금 신청 자격과 제한 대상은 무엇인가요?",
         "신용보증기금의 보증상품 성과평가 결과를 요약해 주실래요?"
@@ -136,7 +204,7 @@ function App() {
       ]
     },
     {
-      name: "🛡️ KYC/AML 금융 규제 데이터",
+      name: "🛡️ KYC/AML 금융 규제",
       questions: [
         "비대면 가맹점 심사 시 고객확인제도(KYC) 필수 확인 항목은 무엇인가요?",
         "전자금융업 감독규정상 자금세탁방지(AML) 내부통제 절차는 어떻게 되나요?"
@@ -147,22 +215,48 @@ function App() {
   // 대화 전환 핸들러
   const handleSelectConversation = (convId) => {
     setActiveConvId(convId);
+    setIsSidebarOpen(false); // 모바일에서 선택 시 사이드바 자동 닫기
+  };
+
+  // 대화 삭제 핸들러
+  const handleDeleteConversation = (e, convId) => {
+    e.stopPropagation(); // 대화방 전환 방지
+    if (!window.confirm("이 대화를 삭제하시겠습니까?")) return;
+    
+    const updatedConvs = conversations.filter(c => c.id !== convId);
+    
+    if (updatedConvs.length === 0) {
+      const newConv = {
+        id: `conv-${Date.now()}`,
+        title: '새 대화',
+        preview: '새로운 질문을 입력해 보세요',
+        icon: '✨',
+        time: new Date().toISOString(),
+        messages: [{ ...WELCOME_MESSAGE }]
+      };
+      setConversations([newConv]);
+      setActiveConvId(newConv.id);
+    } else {
+      setConversations(updatedConvs);
+      if (convId === activeConvId) {
+        setActiveConvId(updatedConvs[0].id);
+      }
+    }
   };
 
   // 새 대화 시작 핸들러
   const handleNewChat = () => {
-    const now = new Date();
-    const timeStr = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
     const newConv = {
       id: `conv-${Date.now()}`,
       title: '새 대화',
       preview: '새로운 질문을 입력해 보세요',
       icon: '✨',
-      time: timeStr,
+      time: new Date().toISOString(),
       messages: [{ ...WELCOME_MESSAGE }]
     };
     setConversations(prev => [newConv, ...prev]);
     setActiveConvId(newConv.id);
+    setIsSidebarOpen(false); // 모바일에서 생성 시 사이드바 자동 닫기
   };
 
   // 메시지 전송 핸들러
@@ -171,8 +265,8 @@ function App() {
     if (!queryText.trim()) return;
 
     const userMessage = { sender: 'user', text: queryText, sources: [] };
-    
-    // 현재 대화에 사용자 메시지 추가 + 제목/미리보기 업데이트
+
+    // 현재 대화에 사용자 메시지 추가 + 제목/미리보기/시간(최신화) 업데이트
     setConversations(prev => prev.map(conv => {
       if (conv.id === activeConvId) {
         const isFirstUserMsg = !conv.messages.some(m => m.sender === 'user');
@@ -180,12 +274,13 @@ function App() {
           ...conv,
           title: isFirstUserMsg ? queryText.substring(0, 20) + (queryText.length > 20 ? '...' : '') : conv.title,
           preview: queryText.substring(0, 30),
+          time: new Date().toISOString(), // 대화 시간 업데이트
           messages: [...conv.messages, userMessage]
         };
       }
       return conv;
     }));
-    
+
     if (!textToSend) {
       setInput('');
     }
@@ -193,7 +288,7 @@ function App() {
     setIsLoading(true);
 
     try {
-      const API_URL = process.env.REACT_APP_API_URL || 'https://kb-ai-agent-backend.onrender.com';
+      const API_URL = process.env.REACT_APP_API_URL || 'https://two026-kb-ai-challenge-small-business.onrender.com';
       const response = await fetch(`${API_URL}/api/chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -203,7 +298,7 @@ function App() {
       if (!response.ok) throw new Error('서버 응답 에러');
 
       const data = await response.json();
-      
+
       const agentMessage = {
         sender: 'agent',
         text: data.generation,
@@ -247,20 +342,27 @@ function App() {
       <div className="kb-banner">
         <span className="kb-banner-badge">현직자 Pick 주제</span>
         <span>2026 KB 국민은행 제8회 AI Challenge 경진대회</span>
-        <img 
-          src={process.env.PUBLIC_URL + "/star-friends.png"} 
-          className="star-friends-img" 
-          alt="KB 스타프렌즈 스토리" 
+        <img
+          src={process.env.PUBLIC_URL + "/star-friends.png"}
+          className="star-friends-img"
+          alt="KB 스타프렌즈 스토리"
         />
       </div>
 
+      {/* 모바일 사이드바 어두운 배경 오버레이 */}
+      <div 
+        className={`sidebar-overlay ${isSidebarOpen ? 'active' : ''}`} 
+        onClick={() => setIsSidebarOpen(false)} 
+      />
+
       {/* 3. 메인 분할 화면 */}
       <div className="main-layout">
-        
+
         {/* 좌측 사이드바: 과거 대화 기록 */}
-        <aside className="sidebar">
+        <aside className={`sidebar ${isSidebarOpen ? 'open' : ''}`}>
           <div className="sidebar-section">
             <div className="sidebar-title">
+              <button className="sidebar-close-btn" onClick={() => setIsSidebarOpen(false)}>✕</button>
               <span>💬</span> 대화 기록
               <button className="new-chat-btn" onClick={handleNewChat}>
                 + 새 대화
@@ -268,7 +370,7 @@ function App() {
             </div>
 
             <div className="history-date-group">
-              <div className="history-date-label">오늘</div>
+              <div className="history-date-label">대화 리스트</div>
               {conversations.map((conv) => (
                 <div
                   key={conv.id}
@@ -279,10 +381,17 @@ function App() {
                   <div className="history-item-content">
                     <div className="history-item-header">
                       <span className="history-item-title">{conv.title}</span>
-                      <span className="history-item-time">{conv.time}</span>
+                      <span className="history-item-time">{formatTime(conv.time)}</span>
                     </div>
                     <div className="history-item-preview">{conv.preview}</div>
                   </div>
+                  <button 
+                    className="delete-conv-btn"
+                    onClick={(e) => handleDeleteConversation(e, conv.id)}
+                    title="대화 삭제"
+                  >
+                    🗑️
+                  </button>
                 </div>
               ))}
             </div>
@@ -293,6 +402,7 @@ function App() {
         <main className="chat-area">
           <div className="agent-info-bar">
             <div className="agent-info-left">
+              <button className="menu-toggle-btn" onClick={() => setIsSidebarOpen(true)}>☰</button>
               <div className="agent-avatar">🤖</div>
               <div className="agent-name-box">
                 <div className="agent-name">금융 지원 AI 에이전트</div>
@@ -313,7 +423,7 @@ function App() {
                   </div>
                   <div className="message-bubble">
                     {msg.text}
-                    
+
                     {/* 출처 표시 (에이전트 메시지이고 출처가 있을 때) */}
                     {msg.sender === 'agent' && msg.sources && msg.sources.length > 0 && (
                       <div className="sources-container">
@@ -353,7 +463,12 @@ function App() {
           <div className="recommendation-bar">
             {recommendedCategories.map((category, idx) => (
               <div key={idx} className="recommendation-category-wrapper">
-                <div className="recommendation-category">{category.name}</div>
+                <div 
+                  className="recommendation-category"
+                  onClick={() => setActiveRecommendCategory(category)}
+                >
+                  {category.name}
+                </div>
                 <div className="recommendation-tooltip">
                   {category.questions.map((question, qIdx) => (
                     <button
@@ -375,7 +490,7 @@ function App() {
             <input
               type="text"
               className="chat-input"
-              placeholder="AI 에이전트에게 소상공인 금융 규제 및 정책자금에 대해 질문해 보세요..."
+              placeholder="AI 에이전트에게 질문해 보세요..."
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
@@ -391,6 +506,33 @@ function App() {
           </div>
         </main>
       </div>
+
+      {/* 모바일 추천 질문 모달 (바텀 시트 형태) */}
+      {activeRecommendCategory && (
+        <div className="recommend-modal-overlay" onClick={() => setActiveRecommendCategory(null)}>
+          <div className="recommend-modal-content" onClick={e => e.stopPropagation()}>
+            <div className="recommend-modal-header">
+              <span className="recommend-modal-title">{activeRecommendCategory.name}</span>
+              <button className="recommend-modal-close" onClick={() => setActiveRecommendCategory(null)}>✕</button>
+            </div>
+            <div className="recommend-modal-list">
+              {activeRecommendCategory.questions.map((question, qIdx) => (
+                <button
+                  key={qIdx}
+                  className="recommend-modal-item"
+                  onClick={() => {
+                    handleSendMessage(question);
+                    setActiveRecommendCategory(null);
+                  }}
+                  disabled={isLoading}
+                >
+                  {question}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* 하단 개발자 정보 */}
       <footer className="app-footer">
